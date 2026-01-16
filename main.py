@@ -54,7 +54,7 @@ def upload(request: UploadRequest):
     except:
         pass
 
-    language_collection = chroma_client.create_collection(name=collection_name, embeddings_function=MyEmbeddingFunction())
+    language_collection = chroma_client.create_collection(name=collection_name, embedding_function=MyEmbeddingFunction())
 
     id_list = []
     for index in range(len(chunk_list)):
@@ -72,22 +72,36 @@ def llm_response(request: QueryRequest):
 
     language_collection = chroma_client.get_collection(name=collection_name, embedding_function=MyEmbeddingFunction())
 
-    retrieved_documents = language_collection.query(query_texts=request.query, n_results=3)
-    refer = retrieved_documents['documetns'][0]
+    retrieved_documents = language_collection.query(query_texts=[request.query], n_results=3)
+    refer = "\n".join(retrieved_documents['documents'][0])
 
     url = "http://ollama:11434/api/generate"
 
     payload = {
         "model": "gemma3:1b",
-        "prompt": f'''You are a business analysis expert in Korea.
-                        Please find answers to users' questions in our *Context*. If not, please direct them to the company.
-                        Please organize your answers so users can understand them.
-                        Please Answer after summerzie in Korean, don't use English.
-                *Context*:
-                {refer}
-                *Question*: {request.query}
+        "prompt": f'''[Role]
+You are an expert Philologist and Linguist specializing in the comparative analysis of Ancient Languages and Middle/Modern Korean.
 
-                Answer in Korean:''',
+[Task]
+Analyze the relationship, phonetic similarities, or grammatical structures between the Ancient language and Korean based ONLY on the provided [Context].
+
+[Constraints]
+1. Respond exclusively in Korean.
+2. If the [Context] does not contain enough information to answer the specific comparison, state: "제공된 문서 내에 해당 고대 언어와 한국어의 비교 데이터가 존재하지 않습니다."
+3. Maintain academic rigor and linguistic precision.
+
+[Structure]
+1. **Summary**: A brief overview of the linguistic connection or finding.
+2. **Analysis**: Detailed comparative analysis (phonemes, morphemes, or syntax).
+3. **Conclusion**: A final synthesis based on the documents.
+
+[Context]
+{refer}
+
+[User Question]
+{request.query}
+
+[Answer in Korean]''',
         "stream": False
     }
 
